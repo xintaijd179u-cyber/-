@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智慧課堂點名與學生管理系統</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 頂部功能導覽列 -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="logo-area">
+        <div class="logo-icon">✓</div>
+        <div class="brand-text">
+          <h1>智慧點名管理系統</h1>
+          <p>課堂出席追蹤 · 即時統計 · 學生管理</p>
+        </div>
+      </div>
+
+      <!-- 課堂資訊設定 -->
+      <div class="session-info">
+        <label for="courseNameInput" style="font-size: 0.8rem; font-weight: 600; color: var(--gray-600);">課程/班級：</label>
+        <input type="text" id="courseNameInput" placeholder="請輸入課程名稱" value="互動多媒體設計">
+        
+        <label for="attendanceDateInput" style="font-size: 0.8rem; font-weight: 600; color: var(--gray-600); margin-left: 0.5rem;">日期：</label>
+        <input type="date" id="attendanceDateInput">
+      </div>
+
+      <!-- 主要功能切換頁籤 -->
+      <nav class="tabs-nav">
+        <button class="tab-btn active" data-tab="attendance">
+          <span>📋</span> 點名互動區
+        </button>
+        <button class="tab-btn" data-tab="roster">
+          <span>👥</span> 學生名單管理
+        </button>
+        <button class="tab-btn" data-tab="stats">
+          <span>📊</span> 即時統計報表
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 主內容容器 -->
+  <main class="app-container">
+
+    <!-- 全域即時數據與進度條 -->
+    <section class="quick-overview-bar">
+      <div class="overview-item">
+        <span class="overview-label"><span>👥</span> 應到總人數</span>
+        <span class="overview-value value-total" id="kpiTotal">0</span>
+      </div>
+      <div class="overview-item">
+        <span class="overview-label"><span style="color: var(--present);">●</span> 實到 (出席)</span>
+        <span class="overview-value value-present" id="kpiPresent">0 (0%)</span>
+      </div>
+      <div class="overview-item">
+        <span class="overview-label"><span style="color: var(--late);">●</span> 遲到人數</span>
+        <span class="overview-value value-late" id="kpiLate">0 (0%)</span>
+      </div>
+      <div class="overview-item">
+        <span class="overview-label"><span style="color: var(--absent);">●</span> 缺席人數</span>
+        <span class="overview-value value-absent" id="kpiAbsent">0 (0%)</span>
+      </div>
+
+      <!-- 多段色彩出席進度條 -->
+      <div class="attendance-progress-wrapper">
+        <div class="progress-header">
+          <span id="progressText">出席率：0%</span>
+          <span style="font-size: 0.75rem; color: var(--gray-500);">綠:出席 | 黃:遲到 | 紅:缺席</span>
+        </div>
+        <div class="multi-progress-bar">
+          <div class="progress-segment segment-present" id="progressBarPresent" style="width: 0%;"></div>
+          <div class="progress-segment segment-late" id="progressBarLate" style="width: 0%;"></div>
+          <div class="progress-segment segment-absent" id="progressBarAbsent" style="width: 0%;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 頁籤 1: 點名互動區 ==================== -->
+    <section id="tab-attendance" class="tab-pane">
+      <div class="toolbar-card">
+        <!-- 搜尋與過濾 -->
+        <div class="toolbar-left">
+          <div class="search-input-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="studentSearchInput" class="search-input" placeholder="搜尋學生姓名或學號...">
+          </div>
+
+          <div class="filter-group">
+            <button class="filter-btn active" data-filter="all">全部</button>
+            <button class="filter-btn" data-filter="present">出席</button>
+            <button class="filter-btn" data-filter="late">遲到</button>
+            <button class="filter-btn" data-filter="absent">缺席</button>
+            <button class="filter-btn" data-filter="unmarked">未點名</button>
+          </div>
+        </div>
+
+        <!-- 快捷動作與檢視模式切換 -->
+        <div class="toolbar-right">
+          <button class="btn btn-warning" id="randomPickBtn" title="課堂提問與抽籤點名">
+            <span>🎲</span> 抽籤點名
+          </button>
+          <button class="btn btn-success" id="markAllPresentBtn">
+            <span>✓</span> 全員出席
+          </button>
+          <button class="btn btn-secondary" id="resetAllAttendanceBtn">
+            <span>↺</span> 重置
+          </button>
+
+          <div class="view-toggle">
+            <button class="view-btn active" id="viewCardBtn" title="卡片網格檢視">⊞ 卡片</button>
+            <button class="view-btn" id="viewListBtn" title="清單列表檢視">≡ 列表</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 學生卡片/列表容器 -->
+      <div id="attendanceContainer" class="attendance-grid">
+        <!-- 由 JavaScript 動態生成渲染 -->
+      </div>
+    </section>
+
+    <!-- ==================== 頁籤 2: 學生名單管理 ==================== -->
+    <section id="tab-roster" class="tab-pane" style="display: none;">
+      <div class="roster-layout">
+        
+        <!-- 左側：新增學生表單 -->
+        <div class="form-card">
+          <h2 class="form-title">
+            <span>➕</span> 新增單筆學生
+          </h2>
+          <form id="studentAddForm">
+            <div class="form-group">
+              <label class="form-label" for="newStudentId">學號 / 座號 *</label>
+              <input type="text" id="newStudentId" class="form-control" placeholder="例：101 或 S001" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="newStudentName">學生姓名 *</label>
+              <input type="text" id="newStudentName" class="form-control" placeholder="例：陳小明" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="newStudentGroup">分組 / 備註</label>
+              <input type="text" id="newStudentGroup" class="form-control" placeholder="例：第 1 組 或 旁聽生">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 0.5rem;">
+              <span>+</span> 加入學生名單
+            </button>
+          </form>
+
+          <div style="margin-top: 2rem; border-top: 1px solid var(--gray-200); padding-top: 1rem;">
+            <p style="font-size: 0.8rem; color: var(--gray-500); margin-bottom: 0.75rem;">
+              💡 提示：名單會自動保存於瀏覽器中，換頁或重新開啟不會遺失。
+            </p>
+            <button class="btn btn-secondary btn-sm" id="loadSampleBtn" style="width: 100%; justify-content: center; margin-bottom: 0.5rem;">
+              📋 一鍵載入示範名單 (18人)
+            </button>
+            <button class="btn btn-outline-danger btn-sm" id="clearAllStudentsBtn" style="width: 100%; justify-content: center;">
+              🗑️ 清空所有名單
+            </button>
+          </div>
+        </div>
+
+        <!-- 右側：名單總覽表格 -->
+        <div class="form-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 class="form-title" style="margin-bottom: 0;">
+              <span>📋</span> 目前學生名單
+              <span id="rosterTotalBadge" style="font-size: 0.8rem; background: var(--primary-light); color: var(--primary); padding: 0.2rem 0.6rem; border-radius: var(--radius-full); font-weight: 700;">0 人</span>
+            </h2>
+            <button class="btn btn-secondary" id="openBatchImportBtn">
+              <span>📥</span> 批次貼上匯入
+            </button>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table class="attendance-list-table">
+              <thead>
+                <tr>
+                  <th style="width: 120px;">學號</th>
+                  <th>學生姓名</th>
+                  <th style="width: 160px;">分組 / 備註</th>
+                  <th style="width: 140px; text-align: center;">操作</th>
+                </tr>
+              </thead>
+              <tbody id="rosterTableBody">
+                <!-- 由 JavaScript 動態生成渲染 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 頁籤 3: 即時統計報表 ==================== -->
+    <section id="tab-stats" class="tab-pane" style="display: none;">
+      <div class="toolbar-card" style="margin-bottom: 1.5rem;">
+        <div>
+          <h2 style="font-size: 1.1rem; font-weight: 700; color: var(--gray-900);">即時出席統計與報表匯出</h2>
+          <p style="font-size: 0.8rem; color: var(--gray-500);">狀態即時連動更新，可直接將紀錄匯出為 Excel / CSV 或列印留存</p>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+          <button class="btn btn-primary" id="exportCsvBtn">
+            <span>📥</span> 匯出 CSV 點名表
+          </button>
+          <button class="btn btn-secondary" id="printReportBtn">
+            <span>🖨️</span> 列印 / 另存 PDF
+          </button>
+        </div>
+      </div>
+
+      <div class="stats-dashboard">
+        <!-- 左側：環形圖表與圖例 -->
+        <div class="chart-card">
+          <div class="chart-title">
+            <span>出席比例圖</span>
+            <span style="font-size: 0.8rem; color: var(--gray-500); font-weight: 500;">即時動態</span>
+          </div>
+
+          <div class="canvas-container">
+            <canvas id="attendanceDonutChart" width="240" height="240"></canvas>
+            <div class="canvas-center-text">
+              <div class="center-rate" id="centerPresentRate">0%</div>
+              <div class="center-sub">出席率</div>
+            </div>
+          </div>
+
+          <div class="chart-legend">
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--present);"></div>
+              <span>出席</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--late);"></div>
+              <span>遲到</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--absent);"></div>
+              <span>缺席</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-dot" style="background: var(--gray-300);"></div>
+              <span>未點</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右側：指標分解與需注意名單 (缺席、遲到快速核對) -->
+        <div class="breakdown-card">
+          <div class="chart-title">
+            <span>出席狀態數據明細</span>
+          </div>
+
+          <!-- 詳細數字 KPI 區塊 -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="background: var(--gray-50); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--gray-200);">
+              <div style="font-size: 0.75rem; color: var(--gray-500); font-weight: 600;">總人數</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: var(--gray-800);" id="statTotalNum">0</div>
+            </div>
+            <div style="background: var(--present-bg); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--present-border);">
+              <div style="font-size: 0.75rem; color: var(--present-text); font-weight: 600;">出席 (實到)</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: var(--present-text);" id="statPresentNum">0 人</div>
+              <div style="font-size: 0.75rem; color: var(--present-text);" id="statPresentPct">0%</div>
+            </div>
+            <div style="background: var(--late-bg); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--late-border);">
+              <div style="font-size: 0.75rem; color: var(--late-text); font-weight: 600;">遲到</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: var(--late-text);" id="statLateNum">0 人</div>
+              <div style="font-size: 0.75rem; color: var(--late-text);" id="statLatePct">0%</div>
+            </div>
+            <div style="background: var(--absent-bg); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--absent-border);">
+              <div style="font-size: 0.75rem; color: var(--absent-text); font-weight: 600;">缺席</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: var(--absent-text);" id="statAbsentNum">0 人</div>
+              <div style="font-size: 0.75rem; color: var(--absent-text);" id="statAbsentPct">0%</div>
+            </div>
+            <div style="background: var(--gray-100); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--gray-300);">
+              <div style="font-size: 0.75rem; color: var(--gray-600); font-weight: 600;">尚未點名</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: var(--gray-700);" id="statUnmarkedNum">0 人</div>
+            </div>
+          </div>
+
+          <!-- 缺席與遲到名單快速追蹤欄 -->
+          <div class="attention-columns">
+            <div class="attention-box box-absent">
+              <h3>
+                <span>✕ 缺席學生清單</span>
+                <span id="statsAbsentBadge" class="badge-absent current-status-badge">0 人</span>
+              </h3>
+              <ul class="attention-list" id="statsAbsentList">
+                <!-- 動態注入 -->
+              </ul>
+            </div>
+
+            <div class="attention-box box-late">
+              <h3>
+                <span>⏰ 遲到學生清單</span>
+                <span id="statsLateBadge" class="badge-late current-status-badge">0 人</span>
+              </h3>
+              <ul class="attention-list" id="statsLateList">
+                <!-- 動態注入 -->
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== 彈出視窗 1: 批次匯入名單 ==================== -->
+  <div class="modal-overlay" id="batchImportModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📥 批次匯入學生名單</h2>
+        <button class="modal-close-btn" onclick="UI.closeModal('batchImportModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 0.75rem;">
+          支援直接由 Excel 或文字貼上，每一行代表一位學生。支援「學號, 姓名, 組別」或以空格/Tab 分隔：
+        </p>
+        <textarea id="batchImportTextarea" class="form-control" rows="8" placeholder="例如：&#10;101, 王小明, 第 1 組&#10;102, 李小華, 第 1 組&#10;103, 張大同, 第 2 組"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="UI.closeModal('batchImportModal')">取消</button>
+        <button class="btn btn-primary" id="submitBatchImportBtn">開始匯入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 彈出視窗 2: 編輯學生資料 ==================== -->
+  <div class="modal-overlay" id="editStudentModal">
+    <div class="modal-content" style="max-width: 420px;">
+      <div class="modal-header">
+        <h2>✏️ 編輯學生資料</h2>
+        <button class="modal-close-btn" onclick="UI.closeModal('editStudentModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="editStudentId">學號 (不可修改)</label>
+          <input type="text" id="editStudentId" class="form-control" disabled style="background: var(--gray-100);">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="editStudentName">姓名 *</label>
+          <input type="text" id="editStudentName" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="editStudentGroup">分組 / 備註</label>
+          <input type="text" id="editStudentGroup" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="UI.closeModal('editStudentModal')">取消</button>
+        <button class="btn btn-primary" onclick="UI.saveEditStudent()">儲存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 彈出視窗 3: 隨機抽籤點名互動 ==================== -->
+  <div class="modal-overlay" id="randomPickerModal">
+    <div class="modal-content" style="max-width: 460px;">
+      <div class="modal-header">
+        <h2>🎲 課堂抽籤點名</h2>
+        <button class="modal-close-btn" onclick="UI.closeModal('randomPickerModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="picker-display">
+          <div class="picker-name" id="pickerResultName">準備中...</div>
+          <div class="picker-id" id="pickerResultId">點擊下方按鈕開始抽取</div>
+        </div>
+
+        <!-- 抽中後的即時點名按鈕組 -->
+        <div id="pickerActionGroup" style="display: none; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+          <div style="font-size: 0.825rem; font-weight: 600; color: var(--gray-600); text-align: center;">立即標記抽中學生狀態：</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+            <button class="btn btn-success picker-status-btn" data-status="present" onclick="UI.setPickedStudentStatus('present')">✓ 出席</button>
+            <button class="btn btn-warning picker-status-btn" data-status="late" onclick="UI.setPickedStudentStatus('late')">⏰ 遲到</button>
+            <button class="btn btn-danger picker-status-btn" data-status="absent" onclick="UI.setPickedStudentStatus('absent')">✕ 缺席</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: space-between;">
+        <button class="btn btn-secondary" onclick="UI.closeModal('randomPickerModal')">關閉</button>
+        <button class="btn btn-primary" id="startRollBtn" onclick="UI.startRollingAnimation()">
+          🎯 開始抽籤
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 訊息提示容器 -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <footer class="app-footer">
+    <p>智慧點名系統 &copy; 2026 · 學生名單管理 · 出席/遲到/缺席互動切換 · 即時統計與報表匯出</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
